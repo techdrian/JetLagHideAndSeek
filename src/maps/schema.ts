@@ -271,6 +271,20 @@ const zoneMatchingQuestionsSchema = baseMatchingQuestionSchema.extend({
         .default(() => ({ adminLevel: 3 }) as { adminLevel: 3 }),
 });
 
+const vbbZoneMatchingSchema = baseMatchingQuestionSchema.extend({
+    type: z.literal("vbb-zone").describe("VBB Tarifzone (Berlin-Brandenburg)"),
+    vbbZone: z
+        .union([
+            z.literal("A"),
+            z.literal("B"),
+            z.literal("C"),
+            z.literal("AB"),
+            z.literal("BC"),
+            z.literal("ABC"),
+        ])
+        .default("AB"),
+});
+
 const homeGameMatchingQuestionsSchema = baseMatchingQuestionSchema.extend({
     type: z.union([
         z.literal("aquarium").describe("Aquarium Question"),
@@ -310,6 +324,7 @@ const customMatchingQuestionSchema = baseMatchingQuestionSchema.extend({
 });
 
 export const matchingQuestionSchema = z.union([
+    vbbZoneMatchingSchema.describe(NO_GROUP),
     zoneMatchingQuestionsSchema.describe(NO_GROUP),
     ordinaryMatchingQuestionSchema.describe(NO_GROUP),
     customMatchingQuestionSchema.describe(NO_GROUP),
@@ -333,7 +348,7 @@ const ordinaryMeasuringQuestionSchema = baseMeasuringQuestionSchema.extend({
                 .describe("Major City (1,000,000+ people) Question"),
             z
                 .literal("highspeed-measure-shinkansen")
-                .describe("High-Speed Rail Question"),
+                .describe("High-Speed Rail (ICE/TGV/Shinkansen) Question"),
             z
                 .literal("aquarium-full")
                 .describe("Aquarium Question (Small+Medium Games)"),
@@ -445,6 +460,7 @@ export type HomeGameMatchingQuestions = z.infer<
     typeof homeGameMatchingQuestionsSchema
 >;
 export type ZoneMatchingQuestions = z.infer<typeof zoneMatchingQuestionsSchema>;
+export type VBBZoneMatchingQuestion = z.infer<typeof vbbZoneMatchingSchema>;
 export type CustomMatchingQuestion = z.infer<
     typeof customMatchingQuestionSchema
 >;

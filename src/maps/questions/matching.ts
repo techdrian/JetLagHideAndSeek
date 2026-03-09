@@ -17,8 +17,11 @@ import {
     polyGeoJSON,
 } from "@/lib/context";
 import {
+    CacheType,
+    determineGeoJSON,
     findAdminBoundary,
     findPlacesInZone,
+    getOverpassData,
     LOCATION_FIRST_TAG,
     nearestToQuestion,
     prettifyLocation,
@@ -118,6 +121,50 @@ export const findMatchingPlaces = async (question: MatchingQuestion) => {
     }
 };
 
+// VBB Tarifzone boundary helpers
+// Berlin state (Zone A+B), OSM relation 62422
+const getBerlinBoundary = _.memoize(async () => {
+    const geo = await determineGeoJSON("62422", "R");
+    return safeUnion(
+        turf.featureCollection(geo.features),
+    ) as Feature<Polygon | MultiPolygon>;
+});
+
+// Brandenburg state (Zone C area), OSM relation 62504
+const getBrandenburgBoundary = _.memoize(async () => {
+    const geo = await determineGeoJSON("62504", "R");
+    return safeUnion(
+        turf.featureCollection(geo.features),
+    ) as Feature<Polygon | MultiPolygon>;
+});
+
+// Zone A = area inside S-Bahn ring (Ringbahn S41/S42)
+const getVBBZoneABoundary = _.memoize(async () => {
+    const data = await getOverpassData(
+        `[out:json];(
+relation["ref"="S41"][railway=route][network="S-Bahn Berlin"];
+relation["ref"="S42"][railway=route][network="S-Bahn Berlin"];
+);
+way(r);
+out geom;`,
+        "Loading VBB Zone A (S-Bahn Ring)...",
+        CacheType.PERMANENT_CACHE,
+    );
+    const geoJSON = osmtogeojson(data) as FeatureCollection;
+    const lines = geoJSON.features.filter(
+        (f) =>
+            f.geometry.type === "LineString" ||
+            f.geometry.type === "MultiLineString",
+    );
+    if (lines.length === 0) return null;
+    const allCoords: number[][] = lines.flatMap((f) => {
+        if (f.geometry.type === "LineString")
+            return (f.geometry as any).coordinates as number[][];
+        return ((f.geometry as any).coordinates as number[][][]).flat();
+    });
+    return turf.convex(turf.multiPoint(allCoords));
+});
+
 export const determineMatchingBoundary = _.memoize(
     async (question: MatchingQuestion) => {
         let boundary;
@@ -138,6 +185,70 @@ export const determineMatchingBoundary = _.memoize(
             case "same-length-station":
             case "same-train-line": {
                 return false;
+            }
+            case "vbb-zone": {
+                const zone = (question as any).vbbZone || "AB";
+                const berlinBoundary = await getBerlinBoundary();
+
+                if (zone === "AB") {
+                    boundary = berlinBoundary;
+                    break;
+                }
+
+                const zoneA = await getVBBZoneABoundary();
+
+                if (zone === "A") {
+                    boundary = zoneA ?? berlinBoundary;
+                    break;
+                }
+
+                if (zone === "B") {
+                    if (!zoneA) {
+                        boundary = berlinBoundary;
+                    } else {
+                        boundary = turf.difference(
+                            turf.featureCollection([berlinBoundary, zoneA]),
+                        );
+                    }
+                    break;
+                }
+
+                const brandenburgBoundary = await getBrandenburgBoundary();
+                const vbbArea = safeUnion(
+                    turf.featureCollection([berlinBoundary, brandenburgBoundary]),
+                );
+
+                if (zone === "ABC") {
+                    boundary = vbbArea;
+                    break;
+                }
+
+                const zoneCBoundary = turf.difference(
+                    turf.featureCollection([brandenburgBoundary, berlinBoundary]),
+                );
+
+                if (zone === "C") {
+                    boundary = zoneCBoundary;
+                    break;
+                }
+
+                // BC = Berlin (minus Zone A) + Brandenburg
+                if (zone === "BC") {
+                    if (!zoneA) {
+                        boundary = vbbArea;
+                    } else {
+                        const zoneB = turf.difference(
+                            turf.featureCollection([berlinBoundary, zoneA]),
+                        );
+                        boundary = safeUnion(
+                            turf.featureCollection([zoneB!, zoneCBoundary!]),
+                        );
+                    }
+                    break;
+                }
+
+                boundary = berlinBoundary;
+                break;
             }
             case "custom-zone": {
                 boundary = question.geo;
@@ -244,13 +355,14 @@ export const determineMatchingBoundary = _.memoize(
 
         return boundary;
     },
-    (question: MatchingQuestion & { geo?: unknown; cat?: unknown }) =>
+    (question: MatchingQuestion & { geo?: unknown; cat?: unknown; vbbZone?: unknown }) =>
         JSON.stringify({
             type: question.type,
             lat: question.lat,
             lng: question.lng,
             cat: question.cat,
             geo: question.geo,
+            vbbZone: question.vbbZone,
             entirety: polyGeoJSON.get()
                 ? polyGeoJSON.get()
                 : mapGeoLocation.get(),

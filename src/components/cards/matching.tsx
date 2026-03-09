@@ -70,6 +70,28 @@ export const MatchingQuestionComponent = ({
     let questionSpecific = <></>;
 
     switch (data.type) {
+        case "vbb-zone":
+            questionSpecific = (
+                <SidebarMenuItem className={MENU_ITEM_CLASSNAME}>
+                    <Select
+                        trigger="VBB Tarifzone"
+                        options={{
+                            A: "Zone A – Berlin Innenraum (S-Bahn Ring)",
+                            B: "Zone B – Berlin Außenraum",
+                            C: "Zone C – Brandenburg",
+                            AB: "Zonen A+B – Ganz Berlin",
+                            BC: "Zonen B+C – Berlin & Brandenburg (ohne Ring)",
+                            ABC: "Zonen A+B+C – Gesamtes VBB-Gebiet",
+                        }}
+                        value={(data as any).vbbZone || "AB"}
+                        onValueChange={(value) =>
+                            questionModified(((data as any).vbbZone = value))
+                        }
+                        disabled={!data.drag || $isLoading}
+                    />
+                </SidebarMenuItem>
+            );
+            break;
         case "zone":
         case "letter-zone":
             questionSpecific = (
@@ -79,8 +101,8 @@ export const MatchingQuestionComponent = ({
                             trigger="OSM Zone"
                             options={{
                                 2: "OSM Zone 2 (Country)",
-                                3: "OSM Zone 3 (region in Japan)",
-                                4: "OSM Zone 4 (prefecture in Japan)",
+                                3: "OSM Zone 3 (Region)",
+                                4: "OSM Zone 4 (State/Province)",
                                 5: "OSM Zone 5",
                                 6: "OSM Zone 6",
                                 7: "OSM Zone 7",
