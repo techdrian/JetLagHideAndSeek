@@ -21,19 +21,19 @@ export const mapGeoLocation = persistentAtom<OpenStreetMap>(
     "mapGeoLocation",
     {
         geometry: {
-            coordinates: [52.5170365, 13.3888599],
+            coordinates: [52.4009309, 12.5306374],
             type: "Point",
         },
         type: "Feature",
         properties: {
             osm_type: "R",
-            osm_id: 62422,
-            extent: [52.6755087, 13.0883450, 52.3382448, 13.7611176],
+            osm_id: 62504,
+            extent: [53.5579023, 11.2646704, 51.3597322, 14.7652101],
             country: "Germany",
             osm_key: "place",
             countrycode: "DE",
             osm_value: "state",
-            name: "Berlin",
+            name: "Brandenburg",
             type: "state",
         },
     },
@@ -45,10 +45,37 @@ export const mapGeoLocation = persistentAtom<OpenStreetMap>(
 
 export const additionalMapGeoLocations = persistentAtom<
     AdditionalMapGeoLocations[]
->("additionalMapGeoLocations", [], {
-    encode: JSON.stringify,
-    decode: JSON.parse,
-});
+>(
+    "additionalMapGeoLocations",
+    [
+        {
+            added: true,
+            base: true,
+            location: {
+                type: "Feature",
+                geometry: {
+                    coordinates: [52.5170365, 13.3888599],
+                    type: "Point",
+                },
+                properties: {
+                    osm_type: "R",
+                    osm_id: 62422,
+                    extent: [52.6755087, 13.088345, 52.3382448, 13.7611176],
+                    country: "Germany",
+                    osm_key: "place",
+                    countrycode: "DE",
+                    osm_value: "state",
+                    name: "Berlin",
+                    type: "state",
+                },
+            },
+        },
+    ],
+    {
+        encode: JSON.stringify,
+        decode: JSON.parse,
+    },
+);
 
 export const mapGeoJSON = atom<FeatureCollection<
     Polygon | MultiPolygon
